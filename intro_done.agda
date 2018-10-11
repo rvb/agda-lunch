@@ -239,7 +239,13 @@ joinMapPureId {S n} (x :: xs) rewrite mapCmp pure (tail {n}) xs | joinMapPureId 
 tailNaturality : ∀ {n} {A B : Set} → (f : A → B) → (xs : Vec A (S n)) → map f (tail xs) ≡ tail (map f xs)
 tailNaturality f (x :: xs) = refl
 
-postulate extensionality : {A B : Set} → {f g : A → B} → ((x : A) → f x ≡ g x) → f ≡ g
+--We need to rewrite expressions of the form map (λ x → f x) xs to map (λ x → g x) xs,
+--given ∀ (x : A) → f x ≡ g x.
+--In "extensional" type theories, this follows since ∀ (x : A) → f x ≡ g x implies f ≡ g.
+--This does not hold in Agda, so we directly prove the result we need via induction instead.
+mapCong : ∀ {n} {A B : Set} → {f g : A → B} → ((x : A) → f x ≡ g x) → (xs : Vec A n) → map f xs ≡ map g xs
+mapCong eqfs [] = refl
+mapCong eqfs (x :: xs) rewrite eqfs x | mapCong eqfs xs = refl
 
 joinNaturality : ∀ {n A B} → (f : A → B) → (xs : Vec (Vec A n) n) → map f (join xs) ≡ join (map (map f) xs)
 joinNaturality f [] = refl
@@ -247,7 +253,7 @@ joinNaturality {S n} f ((x :: xs) :: xss)
   rewrite mapCmp (map f) tail xss
     | joinNaturality f (map tail xss)
     | mapCmp tail (map f) xss
-    | extensionality (tailNaturality {n} f) = refl
+    | mapCong (tailNaturality f) xss = refl
 
 joinTail : ∀ {n A} → (xss : Vec (Vec A (S n)) (S n)) → tail (join xss) ≡ join (map tail (tail xss))
 joinTail ((x :: xs) :: xss) = refl
@@ -260,4 +266,4 @@ joinJoinLaw {S n} {A} (((x :: xs) :: xss) :: xsss)
     | mapCmp tail (map tail) xsss
     | joinJoinLaw (map (tail >> map tail) xsss)
     | mapCmp (tail >> map tail) join xsss
-    | extensionality (λ x → joinTail {n} {A} x) = refl
+    | mapCong joinTail xsss = refl
